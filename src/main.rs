@@ -2,7 +2,7 @@ use image::{DynamicImage, GenericImageView, Rgba};
 
 #[allow(unused_variables)]
 fn main() {
-    let img = image::open("img/simple_floor_plan_2.jpg").unwrap();
+    let img = image::open("img/simple_floor_plan_1.png").unwrap();
     let upset: i32 = 15;
     let (width, height) = img.dimensions();
     let p_to_remove = pixel_to_remove(&img);
@@ -14,13 +14,13 @@ fn main() {
 
 /// Look for pixel from side x if it's kinda same the pixel to remove
 fn look_for_pixel_from_side_x(img: &DynamicImage, pixel_to_remove: Rgba<u8>, width: u32, height: u32, upset: i32) -> Vec<(u32, (u32, u32))> {
-    let mut x_wall: Vec<(u32, (u32, u32))> = Vec::new();
+    let mut x_wall: Vec<(u32, (u32, u32))> = Vec::with_capacity((width / 2) as usize);
     let mut points: (u32, (u32, u32)) = (0, (0, 0));
     for y in 0..height {
         let mut found_at: (u32, u32) = (u32::MAX, u32::MAX);
         let mut count = 0;
         for x in 0..width {
-            if has_n_bellow_with_tolerance(img, pixel_to_remove, width, height, x, y ,5, upset) {
+            if has_n_bellow_with_tolerance(img, pixel_to_remove, width, height, x, y, 5, upset) {
                 count += 1;
                 if count > 5 {
                     points = (y, (x - count, 0));
