@@ -1,14 +1,7 @@
-use std::fs::File;
-use std::io::Write;
-use image::Rgba;
-
-mod html_box;
-mod FloorPlan;
+mod floor_plan;
 
 fn main() {
-    let mut html = html_box::Html::new("img/index2.Html", 5);
-    html.write_pixel_at(0, 0, 0xFFFF00);
-    html.write_pixel_at(1, 0, 0xFF00FF);
-    html.close();
+    let floor_plan = floor_plan::Area::new("img/simple_floor_plan_1.png", 5);
+    println!("Floor plan: {:?}", floor_plan.pixel_to_remove());
 }
 
