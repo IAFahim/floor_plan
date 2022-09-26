@@ -1,27 +1,30 @@
-use std::ptr::null;
 use image::{DynamicImage, GenericImageView, Rgba};
 
 pub struct Area {
     path: String,
     img: DynamicImage,
-    width: u32,
-    height: u32,
+    width: u16,
+    height: u16,
     tolerance: i32,
-    y_pre_sum: Vec<Vec<u16>>,
+    maybe_font_size: u16,
+    pub y_pre_sum_bottom_up: Vec<(u16, Vec<(u16, u16)>)>,
 }
 
 impl Area {
     pub fn new(path: &str, tolerance: i32) -> Area {
         let img = image::open(path).expect("Cant open the image");
-        let (width, height) = img.dimensions();
-        Area {
+        let width = img.width() as u16;
+        let height = img.height() as u16;
+        let area = Area {
             path: path.to_string(),
             img,
             width,
             height,
             tolerance,
-            y_pre_sum: vec![vec![0; height as usize]; width as usize],
-        }
+            maybe_font_size: 12,
+            y_pre_sum_bottom_up: Vec::with_capacity(width as usize),
+        };
+        area
     }
 
     // pub fn look_pixel_from_x_axis(&self, x: u32, y: u32) -> Vec<(u32, (u32, u32))> {
@@ -50,7 +53,7 @@ impl Area {
     //                         points.1.1 = x + count;
     //                         x_wall.push(points);
     //                         break;
-    //                     }
+    //                     }![](../img/simple_floor_plan_1.png)
     //                 }
     //                 x -= 1;
     //             }
@@ -59,18 +62,37 @@ impl Area {
     //     x_wall
     // }
 
-    fn y_axis_pre_sum(&self) {}
+    pub fn y_axis_pre_sum(&mut self) {
+        for x in 0..self.width {
+            let mut sum = 0;
+            let mut y = self.height - 2;
+            let mut height_up: Vec<(u16, u16)> = Vec::new();
+            while y > 0 && self.pixel_is_similar_with_tolerance_and_get_current_pixel(x, y) {
+                y -= 1;
+            }
+            while y > 0 {
+                if self.pixel_is_similar_with_tolerance_and_get_current_pixel(x, y) {
+                    sum += 1;
+                } else if sum > self.maybe_font_size {
+                    height_up.push((y + sum, y));
+                    sum = 0;
+                }
+                y -= 1;
+            }
+            self.y_pre_sum_bottom_up.push((x, height_up));
+        }
+    }
 
-    fn pixel_is_similar_with_tolerance_and_get_pre(&self, x: u32, y: u32) -> (bool, Rgba<u8>) {
-        let current_pixel = self.img.get_pixel(x, y);
-        let previous_pixel = self.img.get_pixel(x - 1, y - 1);
-        let mut changed_found_on_colors: i32 = 0;
+    pub fn pixel_is_similar_with_tolerance_and_get_current_pixel(&self, x: u16, y: u16) -> bool {
+        let current_pixel = self.img.get_pixel(x as u32, y as u32).0;
+        let previous_pixel = self.img.get_pixel(x as u32, (y - 1) as u32).0;
+        let mut changed_found_on_colors: i8 = 0;
         for i in 0..3 {
-            if (current_pixel.0[i] as i32 - previous_pixel.0[i] as i32).abs() > self.tolerance {
+            if (current_pixel[i] as i32 - previous_pixel[i] as i32).abs() > self.tolerance {
                 changed_found_on_colors += 1;
             }
         }
-        (changed_found_on_colors != 0, current_pixel)
+        changed_found_on_colors == 0
     }
 
     pub fn pixel_to_remove(&self) -> Rgba<u8> {
