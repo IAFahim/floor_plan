@@ -7,7 +7,7 @@ pub struct Area {
     height: u16,
     tolerance: i32,
     maybe_font_size: u16,
-    pub y_pre_sum_bottom_up: Vec<(u16, Vec<(u16, u16)>)>,
+    pub y_boundary_bottom_up: Vec<(u16, Vec<(u16, u16)>)>,
 }
 
 impl Area {
@@ -22,7 +22,7 @@ impl Area {
             height,
             tolerance,
             maybe_font_size: 12,
-            y_pre_sum_bottom_up: Vec::with_capacity(width as usize),
+            y_boundary_bottom_up: Vec::with_capacity(width as usize),
         };
         area
     }
@@ -62,7 +62,7 @@ impl Area {
     //     x_wall
     // }
 
-    pub fn y_axis_pre_sum(&mut self) {
+    pub fn y_axis_boundary(&mut self) {
         for x in 0..self.width {
             let mut sum = 0;
             let mut y = self.height - 2;
@@ -79,7 +79,7 @@ impl Area {
                 }
                 y -= 1;
             }
-            self.y_pre_sum_bottom_up.push((x, height_up));
+            self.y_boundary_bottom_up.push((x, height_up));
         }
     }
 
