@@ -1,3 +1,4 @@
+use std::thread::current;
 use image::{DynamicImage, GenericImageView, Rgba};
 
 pub struct Area {
@@ -6,8 +7,11 @@ pub struct Area {
     width: u16,
     height: u16,
     tolerance: i32,
-    maybe_font_size: u16,
+    maybe_font_height: u16,
+    maybe_font_width: u16,
+    color_to_ignore: [u8; 4],
     pub y_boundary_bottom_up: Vec<(u16, Vec<(u16, u16)>)>,
+    pub x_boundary_left_to_right: Vec<(u16, Vec<(u16, u16)>)>,
 }
 
 impl Area {
@@ -15,16 +19,18 @@ impl Area {
         let img = image::open(path).expect("Cant open the image");
         let width = img.width() as u16;
         let height = img.height() as u16;
-        let area = Area {
+        Area {
             path: path.to_string(),
             img,
             width,
             height,
             tolerance,
-            maybe_font_size: 12,
+            maybe_font_height: 12,
+            maybe_font_width: 3,
+            color_to_ignore: [250, 250, 250, 250],
             y_boundary_bottom_up: Vec::with_capacity(width as usize),
-        };
-        area
+            x_boundary_left_to_right: Vec::with_capacity(height as usize),
+        }
     }
 
     // pub fn look_pixel_from_x_axis(&self, x: u32, y: u32) -> Vec<(u32, (u32, u32))> {
@@ -62,18 +68,33 @@ impl Area {
     //     x_wall
     // }
 
-    pub fn y_axis_boundary(&mut self) {
+    pub fn x_axis_boundary_left_to_right(&mut self) {
+        for y in 0..self.height {
+            let mut sum = 0;
+            let mut width_left: Vec<(u16, u16)> = Vec::new();
+            for x in 0..self.width {
+                if self.img.get_pixel(x as u32, y as u32).0[0] != self.color_to_ignore[0] {
+                    sum += 1;
+                } else if sum > self.maybe_font_width as u32 {
+                    width_left.push((x - sum as u16, x));
+                    sum = 0;
+                }
+            }
+            self.x_boundary_left_to_right.push((y, width_left));
+        }
+    }
+
+    pub fn y_axis_boundary_down_to_up(&mut self) {
         for x in 0..self.width {
             let mut sum = 0;
             let mut y = self.height - 2;
             let mut height_up: Vec<(u16, u16)> = Vec::new();
-            while y > 0 && self.pixel_is_similar_with_tolerance_and_get_current_pixel(x, y) {
-                y -= 1;
-            }
-            while y > 0 {
-                if self.pixel_is_similar_with_tolerance_and_get_current_pixel(x, y) {
+            while y > 1 {
+                let current_pixel = self.img.get_pixel(x as u32, y as u32).0;
+                let pixel_below = self.img.get_pixel(x as u32, (y + 1) as u32).0;
+                if self.pixel_is_similar_with_tolerance(current_pixel, pixel_below) {
                     sum += 1;
-                } else if sum > self.maybe_font_size {
+                } else if sum > self.maybe_font_height {
                     height_up.push((y + sum, y));
                     sum = 0;
                 }
@@ -83,20 +104,28 @@ impl Area {
         }
     }
 
-    pub fn pixel_is_similar_with_tolerance_and_get_current_pixel(&self, x: u16, y: u16) -> bool {
-        let current_pixel = self.img.get_pixel(x as u32, y as u32).0;
-        let previous_pixel = self.img.get_pixel(x as u32, (y - 1) as u32).0;
+    pub fn pixel_is_similar_with_tolerance(&self, current_pixel: [u8; 4], pixel_to_compare: [u8; 4]) -> bool {
         let mut changed_found_on_colors: i8 = 0;
         for i in 0..3 {
-            if (current_pixel[i] as i32 - previous_pixel[i] as i32).abs() > self.tolerance {
+            if (current_pixel[i] as i32 - pixel_to_compare[i] as i32).abs() > self.tolerance {
                 changed_found_on_colors += 1;
             }
         }
         changed_found_on_colors == 0
     }
 
-    pub fn pixel_to_remove(&self) -> Rgba<u8> {
-        self.img.get_pixel(0, 0)
+    pub fn mean_pixel_is_smaller_than_tolerance_if_last_was_mismatch(&self, first: [u8; 4], mid: [u8; 4], last: [u8; 4]) -> bool {
+        let mut changed_found_on_colors: i8 = 0;
+        for i in 0..3 {
+            if (((first[i] as i32 + last[i] as i32) / 2) - (mid[i] as i32)).abs() > self.tolerance{
+                changed_found_on_colors += 1;
+            }
+        }
+        changed_found_on_colors == 0
+    }
+
+    pub fn dominent_outer_color(&self) -> [u8; 4] {
+        self.img.get_pixel(0, 0).0
         // TODO : implement the better way of finding the dominate pixel
     }
 }
