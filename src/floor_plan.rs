@@ -1,5 +1,6 @@
+use std::mem::transmute;
 use std::thread::current;
-use image::{DynamicImage, GenericImageView, Rgba};
+use image::{DynamicImage, GenericImage, GenericImageView, Rgba};
 
 pub struct Area {
     path: String,
@@ -11,7 +12,7 @@ pub struct Area {
     maybe_font_width: u16,
     color_to_ignore: [u8; 4],
     pub y_boundary_bottom_up: Vec<(u16, Vec<(u16, u16)>)>,
-    pub x_boundary_left_to_right: Vec<(u16, Vec<(u16, u16)>)>,
+    pub bounds: Vec<(u16, Vec<(u16, u16)>)>,
 }
 
 impl Area {
@@ -29,66 +30,68 @@ impl Area {
             maybe_font_width: 3,
             color_to_ignore: [250, 250, 250, 250],
             y_boundary_bottom_up: Vec::with_capacity(width as usize),
-            x_boundary_left_to_right: Vec::with_capacity(height as usize),
+            bounds: Vec::new(),
         }
     }
 
-    // pub fn look_pixel_from_x_axis(&self, x: u32, y: u32) -> Vec<(u32, (u32, u32))> {
-    //     let mut x_wall: Vec<(u32, (u32, u32))> = Vec::with_capacity((self.width / 2) as usize);
-    //     let mut points: (u32, (u32, u32)) = (0, (0, 0));
-    //     for y in 0..height {
-    //         let mut found_at: (u32, u32) = (u32::MAX, u32::MAX);
-    //         let mut count = 0;
-    //         for x in 0..width {
-    //             if has_n_bellow_with_tolerance(img, self.dominate_pixel, width, height, x, y, 5, upset) {
-    //                 count += 1;
-    //                 if count > 5 {
-    //                     points = (y, (x - count, 0));
-    //                     found_at.0 = x - count;
-    //                     break;
-    //                 }
-    //             }
-    //         }
-    //         if found_at.0 < u32::MAX {
-    //             let mut count = 0;
-    //             let mut x = width - 1;
-    //             while x > found_at.0 as u32 {
-    //                 if has_n_bellow_with_tolerance(img, self.dominate_pixel, width, height, x, y, 5, upset) {
-    //                     count += 1;
-    //                     if count > 5 {
-    //                         points.1.1 = x + count;
-    //                         x_wall.push(points);
-    //                         break;
-    //                     }![](../img/simple_floor_plan_1.png)
-    //                 }
-    //                 x -= 1;
-    //             }
-    //         }
-    //     }
-    //     x_wall
-    // }
-
-    pub fn x_axis_boundary_left_to_right(&mut self) {
+    pub fn get_walls_looking_from_x(&self) {
+        let mut bounds: Vec<(u32, Vec<(u32, u32)>)> = Vec::new();
         for y in 0..self.height {
             let mut sum = 0;
-            let mut width_left: Vec<(u16, u16)> = Vec::new();
-            for x in 0..self.width {
-                if self.img.get_pixel(x as u32, y as u32).0[0] != self.color_to_ignore[0] {
+            for x in 1..self.width {
+                let current_pixel = self.img.get_pixel(x as u32, y as u32).0;
+                if self.pixel_is_similar_with_tolerance(current_pixel, self.color_to_ignore) {
+                    continue;
+                }
+                let previous_pixel = self.img.get_pixel((x - 1) as u32, y as u32).0;
+                if self.pixel_is_similar_with_tolerance(previous_pixel, self.color_to_ignore) {
                     sum += 1;
-                } else if sum > self.maybe_font_width as u32 {
-                    width_left.push((x - sum as u16, x));
-                    sum = 0;
                 }
             }
-            self.x_boundary_left_to_right.push((y, width_left));
         }
     }
+
+    pub fn x_bound_heat(){
+
+    }
+
+    pub fn y_axis_heat_map(&self) {
+        let new_string_path = self.path.replace(".png", "_heatMap.png");
+        let mut imgbuf = DynamicImage::new_rgb8(self.width as u32, self.height as u32);
+        for x in 0..self.width {
+            let v: Vec<(u16, u16)> = self.y_boundary_bottom_up.get(x as usize).unwrap().1.clone();
+            for bound in v {
+                let mut count: u32 = 0;
+                let mut y = bound.1;
+                while y <= bound.0 {
+                    let g=((count * 255) / self.height as u32 ) as u8;
+                    let mut buf: [u8; 4] = [255, 255-g, 255, 255];
+                    imgbuf.put_pixel(x as u32, y as u32, Rgba(buf));
+                    y += 1;
+                    count += 1;
+                }
+            }
+        }
+        imgbuf.save(new_string_path).unwrap();
+    }
+
+    fn y_axis_contains_wall(&self, x: u16, y: u16) -> bool {
+        let point: Vec<(u16, u16)> = self.y_boundary_bottom_up.get(y as usize).unwrap().1.clone();
+        for i in point {
+            if i.0 <= x && x <= i.1 {
+                return true;
+            }
+        }
+        false
+    }
+
 
     pub fn y_axis_boundary_down_to_up(&mut self) {
         for x in 0..self.width {
             let mut sum = 0;
             let mut y = self.height - 2;
             let mut height_up: Vec<(u16, u16)> = Vec::new();
+
             while y > 1 {
                 let current_pixel = self.img.get_pixel(x as u32, y as u32).0;
                 let pixel_below = self.img.get_pixel(x as u32, (y + 1) as u32).0;
@@ -117,7 +120,7 @@ impl Area {
     pub fn mean_pixel_is_smaller_than_tolerance_if_last_was_mismatch(&self, first: [u8; 4], mid: [u8; 4], last: [u8; 4]) -> bool {
         let mut changed_found_on_colors: i8 = 0;
         for i in 0..3 {
-            if (((first[i] as i32 + last[i] as i32) / 2) - (mid[i] as i32)).abs() > self.tolerance{
+            if (((first[i] as i32 + last[i] as i32) / 2) - (mid[i] as i32)).abs() > self.tolerance {
                 changed_found_on_colors += 1;
             }
         }
