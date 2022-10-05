@@ -12,6 +12,7 @@ pub struct Area {
     maybe_font_width: u16,
     color_to_ignore: [u8; 4],
     pub y_pre_sum_matrix: Vec<Vec<u16>>,
+    pub dir: [(i32, i32); 8],
 }
 
 impl Area {
@@ -29,6 +30,7 @@ impl Area {
             maybe_font_width: 3,
             color_to_ignore: [250, 250, 250, 250],
             y_pre_sum_matrix: vec![vec![0; height as usize]; width as usize],
+            dir: [(1, 0), (1, -1), (0, 1), (-1, 1), (-1, 0), (0, -1), (-1, -1), (1, 1)],
         }
     }
 
@@ -63,7 +65,7 @@ impl Area {
         let height = self.height as u16;
         for x in 0..self.width {
             for y in 0..self.height {
-                let mut color = ((self.y_pre_sum_matrix[x][y] as usize * 255) / self.height ) as u8;
+                let mut color = ((self.y_pre_sum_matrix[x][y] as usize * 255) / self.height) as u8;
                 img.put_pixel(x as u32, y as u32, Rgba([255, 255 - color, 255, 255]));
             }
         }
