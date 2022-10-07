@@ -59,8 +59,27 @@ impl Area {
         }
     }
 
-    pub fn y_heat_map(&self) {
-        let path = self.path.replace(".png", "_y_heatMap.png");
+    pub fn create_color_sets(&mut self) {
+        //TODO: create color sets
+    }
+
+    pub fn separate_by_color(&mut self, color: [u8; 4]) {
+        let path = self.path.clone().replace(".png", "_separated_by_color.png");
+        let mut img: DynamicImage = DynamicImage::new_rgb8(self.width as u32, self.height as u32);
+        for x in 0..self.width {
+            for y in 0..self.height {
+                let current_pixel = self.img.get_pixel(x as u32, y as u32);
+                if self.pixel_is_similar_with_tolerance(current_pixel.0, color) {
+                    img.put_pixel(x as u32, y as u32, current_pixel);
+                }
+            }
+        }
+        img.save(path).expect("Cant save the image");
+    }
+
+
+    pub fn y_heat_map(&mut self) {
+        let path = self.path.clone().replace(".png", "_y_heatMap.png");
         let mut img = DynamicImage::new_rgb8(self.width as u32, self.height as u32);
         let height = self.height as u16;
         for x in 0..self.width {
