@@ -123,13 +123,17 @@ impl Area {
                     let _started_at_pixel = (x, y);
                     let mut _a_wall: Vec<(u16, u16)> = Vec::new();
                     for i in 0..self.dir.len() {
+                        let mut count = 0;
                         let mut current_state = self.move_at_dir(x, y, self.dir[i]);
                         while !current_state.0 {
                             current_state = self.move_at_dir(x, y, self.dir[i]);
+                            count += 1;
                         }
-                        _a_wall.push((x as u16, y as u16));
+                        if count > 0 {
+                            _a_wall.push((x as u16, y as u16));
+                            one_wall.clear();
+                        }
                         (x, y) = (x + current_state.1, y + current_state.2);
-                        one_wall.clear();
                     }
                 }
             }
@@ -141,9 +145,9 @@ impl Area {
         x = (x as i32 + dir.0) as usize;
         y = (y as i32 + dir.1) as usize;
         if self.isWall[x][y] {
-            return (true, x, y);
+            return (false, x, y);
         }
-        (false, x, y)
+        (true, x, y)
     }
 
     pub fn dir_x_right(&mut self, mut x: usize, y: usize, _current_wall: &mut Vec<(u16, u16)>) -> (u16, u16) {

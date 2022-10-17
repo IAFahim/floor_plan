@@ -9,7 +9,7 @@ fn main() {
     floor_plan.create_y_matrix_pre_sum_from_bottom_up();
     floor_plan.gather_prominent_colors();
     floor_plan.create_wall_matrix();
-    floor_plan.get_wall_map();
+    floor_plan.get_wall_maps_dfs();
     println!("{:?}", floor_plan.walls);
     floor_plan.img.save("img/Untitled2.png").unwrap();
 }
