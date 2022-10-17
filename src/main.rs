@@ -10,6 +10,7 @@ fn main() {
     floor_plan.gather_prominent_colors();
     floor_plan.create_wall_matrix();
     floor_plan.get_wall_map();
+    println!("{:?}", floor_plan.walls);
     floor_plan.img.save("img/Untitled2.png").unwrap();
 }
 

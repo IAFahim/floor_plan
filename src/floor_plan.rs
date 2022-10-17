@@ -100,12 +100,13 @@ impl Area {
     }
 
     pub fn get_wall_map(&mut self) {
-        let mut current_wall: (u16, Vec<(u16, u16)>) = (0, Vec::new());
+        let mut one_wall: (u16, Vec<(u16, u16)>) = (0, Vec::new());
         for y in 0..self.height - 1 {
             for mut x in 0..self.width - 1 {
-                let got = self.dir_x_1(x, y, &mut current_wall);
+                let got = self.dir_x_1(x, y, &mut one_wall);
                 if got != self.NOT_FOUND {
                     x = got.0 as usize;
+                    // self.walls.push((self.wall_count, one_wall));
                 }
             }
         }
@@ -117,11 +118,11 @@ impl Area {
         _current_wall.1.push((x as u16, y as u16));
         while x < self.width - 1 && self.wall_visited[x + 1][y] {
             x += 1;
-            self.wall_visited[x][y]=false;
+            self.wall_visited[x][y] = false;
         }
         _current_wall.0 += 1;
         _current_wall.1.push(((x - 1) as u16, y as u16));
-        self.dir_y__1((x-1),y, _current_wall);
+        self.dir_y__1((x - 1), y, _current_wall);
         (x as u16, y as u16)
     }
 
@@ -130,11 +131,35 @@ impl Area {
         _current_wall.1.push((x as u16, y as u16));
         while y < self.height - 1 && self.wall_visited[x][y + 1] {
             y += 1;
-            self.wall_visited[x][y]=false;
+            self.wall_visited[x][y] = false;
         }
         _current_wall.0 += 1;
         _current_wall.1.push((x as u16, (y - 1) as u16));
-        println!("from y: {:?}", (x, y));
+        self.dir_x__1(x, (y - 1), _current_wall);
+        self.dir_x_1(x, (y - 1), _current_wall);
+    }
+
+    pub fn dir_x__1(&mut self, mut x: usize, y: usize, _current_wall: &mut (u16, Vec<(u16, u16)>)) {
+        _current_wall.0 = 0;
+        _current_wall.1.push((x as u16, y as u16));
+        while x != 0 && self.wall_visited[x - 1][y] {
+            x -= 1;
+            self.wall_visited[x][y] = false;
+        }
+        _current_wall.0 += 1;
+        _current_wall.1.push(((x + 1) as u16, y as u16));
+        self.dir_y_1((x + 1), y, _current_wall);
+    }
+
+    pub fn dir_y_1(&mut self, x: usize, mut y: usize, _current_wall: &mut (u16, Vec<(u16, u16)>)) {
+        _current_wall.0 = 0;
+        _current_wall.1.push((x as u16, y as u16));
+        while y != 0 && self.wall_visited[x][y - 1] {
+            y -= 1;
+            self.wall_visited[x][y] = false;
+        }
+        _current_wall.0 += 1;
+        _current_wall.1.push((x as u16, (y + 1) as u16));
     }
 
 
