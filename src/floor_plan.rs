@@ -41,7 +41,7 @@ impl Area {
             y_pre_sum_matrix: vec![vec![0; height as usize]; width as usize],
             x_pre_sum_matrix: vec![vec![0; height as usize]; width as usize],
             isWall: vec![vec![false; height as usize]; width as usize],
-            dir: [(1, 0), (0, 1), (-1, 0), (0, -1)],
+            dir: [(1, 0), (0, -1), (-1, 0), (0, 1)],
             // dir: [(1, 0), (1, -1), (0, 1), (-1, 1), (-1, 0), (0, -1), (-1, -1), (1, 1)],
             prominent_dark_color: Vec::new(),
             walls: Vec::new(),
@@ -116,25 +116,30 @@ impl Area {
     }
 
     pub fn get_wall_maps_dfs(&mut self) {
-        let mut one_wall: Vec<(u16, u16)> = Vec::new();
+        let mut _a_wall: Vec<(u16, u16)> = Vec::new();
         for mut y in 1..self.height - 1 {
             for mut x in 1..self.width {
                 if self.isWall[x][y] {
                     let _started_at_pixel = (x, y);
-                    let mut _a_wall: Vec<(u16, u16)> = Vec::new();
                     for i in 0..self.dir.len() {
                         let mut count = 0;
                         let mut current_state = self.move_at_dir(x, y, self.dir[i]);
+                        (x, y) = (current_state.1, current_state.2);
                         while !current_state.0 {
                             current_state = self.move_at_dir(x, y, self.dir[i]);
+                            (x, y) = (current_state.1, current_state.2);
+
                             count += 1;
                         }
                         if count > 0 {
+                            self.img.put_pixel(x as u32, y as u32, Rgba([255, 0, 0, 255]));
                             _a_wall.push((x as u16, y as u16));
-                            one_wall.clear();
+                            _a_wall.clear();
+                            count = 0;
+                            break;
                         }
-                        (x, y) = (x + current_state.1, y + current_state.2);
                     }
+                    (x, y) = _started_at_pixel;
                 }
             }
         }
@@ -142,10 +147,11 @@ impl Area {
 
 
     pub fn move_at_dir(&mut self, mut x: usize, mut y: usize, dir: (i32, i32)) -> (bool, usize, usize) {
-        x = (x as i32 + dir.0) as usize;
-        y = (y as i32 + dir.1) as usize;
-        if self.isWall[x][y] {
-            return (false, x, y);
+        let x_changed = (x as i32 + dir.0) as usize;
+        let y_changed = (y as i32 + dir.1) as usize;
+        if self.isWall[x_changed][y_changed] {
+            self.isWall[x_changed][y_changed] = false;
+            return (false, x_changed, y_changed);
         }
         (true, x, y)
     }
@@ -232,7 +238,6 @@ impl Area {
         }
     }
 
-
     pub fn separate_by_color(&mut self, color: [u8; 4]) {
         if self.path.contains(".jpg") {
             self.path = self.path.replace(".jpg", ".png");
@@ -249,7 +254,6 @@ impl Area {
         }
         img.save(path).expect("Cant save the image");
     }
-
 
     pub fn y_heat_map(&mut self) {
         let path = self.path.clone().replace(".png", "_y_heatMap.png");
