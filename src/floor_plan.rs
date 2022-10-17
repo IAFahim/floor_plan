@@ -1,3 +1,4 @@
+use std::mem::transmute_copy;
 use std::usize;
 use image::{DynamicImage, GenericImage, GenericImageView, Rgba};
 
@@ -13,10 +14,10 @@ pub struct Area {
     color_to_ignore: [u8; 4],
     pub y_pre_sum_matrix: Vec<Vec<u16>>,
     pub x_pre_sum_matrix: Vec<Vec<u16>>,
-    pub wall_visited: Vec<Vec<bool>>,
-    pub dir: [(i32, i32); 8],
+    pub isWall: Vec<Vec<bool>>,
+    pub dir: [(i32, i32); 4],
     pub prominent_dark_color: Vec<[u8; 4]>,
-    pub walls: Vec<(u16, Vec<u16>)>,
+    pub walls: Vec<Vec<(u16, u16)>>,
     pub wall_count: u16,
     NOT_FOUND: (u16, u16),
 }
@@ -39,8 +40,9 @@ impl Area {
             dark_color_sum: 300,
             y_pre_sum_matrix: vec![vec![0; height as usize]; width as usize],
             x_pre_sum_matrix: vec![vec![0; height as usize]; width as usize],
-            wall_visited: vec![vec![false; height as usize]; width as usize],
-            dir: [(1, 0), (1, -1), (0, 1), (-1, 1), (-1, 0), (0, -1), (-1, -1), (1, 1)],
+            isWall: vec![vec![false; height as usize]; width as usize],
+            dir: [(1, 0), (0, 1), (-1, 0), (0, -1)],
+            // dir: [(1, 0), (1, -1), (0, 1), (-1, 1), (-1, 0), (0, -1), (-1, -1), (1, 1)],
             prominent_dark_color: Vec::new(),
             walls: Vec::new(),
             wall_count: 0,
@@ -100,66 +102,98 @@ impl Area {
     }
 
     pub fn get_wall_map(&mut self) {
-        let mut one_wall: (u16, Vec<(u16, u16)>) = (0, Vec::new());
+        let mut one_wall: Vec<(u16, u16)> = Vec::new();
         for y in 0..self.height - 1 {
             for mut x in 0..self.width - 1 {
-                let got = self.dir_x_1(x, y, &mut one_wall);
-                if got != self.NOT_FOUND {
+                if self.isWall[x][y] {
+                    let got = self.dir_x_right(x, y, &mut one_wall);
                     x = got.0 as usize;
-                    // self.walls.push((self.wall_count, one_wall));
+                    self.walls.push(one_wall.clone());
+                    one_wall.clear();
                 }
             }
         }
     }
 
-    pub fn dir_x_1(&mut self, mut x: usize, y: usize, _current_wall: &mut (u16, Vec<(u16, u16)>)) -> (u16, u16) {
-        if !self.wall_visited[x][y] { return self.NOT_FOUND; }
-        _current_wall.0 = 0;
-        _current_wall.1.push((x as u16, y as u16));
-        while x < self.width - 1 && self.wall_visited[x + 1][y] {
-            x += 1;
-            self.wall_visited[x][y] = false;
+    pub fn get_wall_maps_dfs(&mut self) {
+        let mut one_wall: Vec<(u16, u16)> = Vec::new();
+        for mut y in 1..self.height - 1 {
+            for mut x in 1..self.width {
+                if self.isWall[x][y] {
+                    let _started_at_pixel = (x, y);
+                    let mut _a_wall: Vec<(u16, u16)> = Vec::new();
+                    for i in 0..self.dir.len() {
+                        let mut current_state = self.move_at_dir(x, y, self.dir[i]);
+                        while !current_state.0 {
+                            current_state = self.move_at_dir(x, y, self.dir[i]);
+                        }
+                        _a_wall.push((x as u16, y as u16));
+                        (x, y) = (x + current_state.1, y + current_state.2);
+                        one_wall.clear();
+                    }
+                }
+            }
         }
-        _current_wall.0 += 1;
-        _current_wall.1.push(((x - 1) as u16, y as u16));
-        self.dir_y__1((x - 1), y, _current_wall);
+    }
+
+
+    pub fn move_at_dir(&mut self, mut x: usize, mut y: usize, dir: (i32, i32)) -> (bool, usize, usize) {
+        x = (x as i32 + dir.0) as usize;
+        y = (y as i32 + dir.1) as usize;
+        if self.isWall[x][y] {
+            return (true, x, y);
+        }
+        (false, x, y)
+    }
+
+    pub fn dir_x_right(&mut self, mut x: usize, y: usize, _current_wall: &mut Vec<(u16, u16)>) -> (u16, u16) {
+        if !self.isWall[x][y] { return self.NOT_FOUND; }
+        _current_wall.push((x as u16, y as u16));
+        x += 1;
+        while x < self.width && self.isWall[x][y] {
+            self.isWall[x][y] = false;
+            x += 1;
+        }
+        x -= 1;
+        _current_wall.push((x as u16, y as u16));
+        self.dir_y_down(x, y, _current_wall);
         (x as u16, y as u16)
     }
 
-    pub fn dir_y__1(&mut self, x: usize, mut y: usize, _current_wall: &mut (u16, Vec<(u16, u16)>)) {
-        _current_wall.0 = 0;
-        _current_wall.1.push((x as u16, y as u16));
-        while y < self.height - 1 && self.wall_visited[x][y + 1] {
+    pub fn dir_y_down(&mut self, mut x: usize, mut y: usize, _current_wall: &mut Vec<(u16, u16)>) {
+        y += 1;
+        while y < self.height - 1 && self.isWall[x][y] {
+            self.isWall[x][y] = false;
             y += 1;
-            self.wall_visited[x][y] = false;
         }
-        _current_wall.0 += 1;
-        _current_wall.1.push((x as u16, (y - 1) as u16));
-        self.dir_x__1(x, (y - 1), _current_wall);
-        self.dir_x_1(x, (y - 1), _current_wall);
+        y -= 1;
+        _current_wall.push((x as u16, y as u16));
+        self.dir_x_left(x, y, _current_wall);
+        self.dir_x_right(x, y, _current_wall);
     }
 
-    pub fn dir_x__1(&mut self, mut x: usize, y: usize, _current_wall: &mut (u16, Vec<(u16, u16)>)) {
-        _current_wall.0 = 0;
-        _current_wall.1.push((x as u16, y as u16));
-        while x != 0 && self.wall_visited[x - 1][y] {
+    pub fn dir_x_left(&mut self, mut x: usize, y: usize, _current_wall: &mut Vec<(u16, u16)>) {
+        x -= 1;
+        while x != 0 && self.isWall[x][y] {
+            self.isWall[x][y] = false;
+            self.dir_y_down(x, y, _current_wall);
             x -= 1;
-            self.wall_visited[x][y] = false;
         }
-        _current_wall.0 += 1;
-        _current_wall.1.push(((x + 1) as u16, y as u16));
-        self.dir_y_1((x + 1), y, _current_wall);
+        x += 1;
+        _current_wall.push((x as u16, y as u16));
+        self.dir_y_up(x, y, _current_wall);
     }
 
-    pub fn dir_y_1(&mut self, x: usize, mut y: usize, _current_wall: &mut (u16, Vec<(u16, u16)>)) {
-        _current_wall.0 = 0;
-        _current_wall.1.push((x as u16, y as u16));
-        while y != 0 && self.wall_visited[x][y - 1] {
+    pub fn dir_y_up(&mut self, x: usize, mut y: usize, _current_wall: &mut Vec<(u16, u16)>) {
+        y -= 1;
+        while y != 0 && self.isWall[x][y] {
+            self.isWall[x][y] = false;
             y -= 1;
-            self.wall_visited[x][y] = false;
         }
-        _current_wall.0 += 1;
-        _current_wall.1.push((x as u16, (y + 1) as u16));
+        y += 1;
+        if _current_wall[0] != (x as u16, y as u16) {
+            _current_wall.push((x as u16, (y + 1) as u16));
+        }
     }
 
 
@@ -173,7 +207,7 @@ impl Area {
             for x in 0..self.width {
                 let current_pixel = self.img.get_pixel(x as u32, y as u32).0;
                 if self.pixel_is_similar_with_tolerance(current_pixel, self.prominent_dark_color[0]) {
-                    self.wall_visited[x][y] = true;
+                    self.isWall[x][y] = true;
                 }
             }
         }
