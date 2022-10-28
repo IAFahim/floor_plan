@@ -15,12 +15,13 @@ pub struct Area {
     pub y_pre_sum_matrix: Vec<Vec<u16>>,
     pub x_pre_sum_matrix: Vec<Vec<u16>>,
     pub isWall: Vec<Vec<bool>>,
-    isVisited: Vec<Vec<bool>>,
+    pub startList: Vec<i32>,
+    pub endList: Vec<i32>,
     pub dir: [(i32, i32); 4],
     pub prominent_dark_color: Vec<[u8; 4]>,
     pub walls: Vec<Vec<(u16, u16)>>,
     pub wall_count: u16,
-    NOT_FOUND: (u16, u16),
+    pub wall_list: Vec<Vec<(u16, u16)>>,
 }
 
 #[allow(dead_code)]
@@ -42,13 +43,15 @@ impl Area {
             y_pre_sum_matrix: vec![vec![0; height as usize]; width as usize],
             x_pre_sum_matrix: vec![vec![0; height as usize]; width as usize],
             isWall: vec![vec![false; height as usize]; width as usize],
-            isVisited: vec![vec![false; height as usize]; width as usize],
-            dir: [(1, 0), (0, -1), (-1, 0), (0, 1)],
+            startList: Vec::new(),
+            endList: Vec::new(),
+
+            dir: [(1, 0), (0, 1), (-1, 0), (0, -1)],
             // dir: [(1, 0), (1, -1), (0, 1), (-1, 1), (-1, 0), (0, -1), (-1, -1), (1, 1)],
             prominent_dark_color: Vec::new(),
             walls: Vec::new(),
             wall_count: 0,
-            NOT_FOUND: (u16::MAX, u16::MAX),
+            wall_list: Vec::new(),
         }
     }
 
@@ -101,48 +104,118 @@ impl Area {
 
     pub fn get_walls(&mut self) {
         for y in 0..self.height {
-            for x in 0..self.width {
-                let mut found=false;
-                for i in 0..self.dir.len() {
-                    if !self.isWall[x][y] {
+            for mut x in 0..self.width {
+                if !self.isWall[x][y] {
+                    continue;
+                }
+                let mut currentWallList: Vec<(u16, u16)> = Vec::new();
+                let returned_x = self.check_wall_right(x as i32, y as i32);
+                if x < returned_x as usize {
+                    self.isWall[x][y] = true;
+                    currentWallList.push((x as u16, y as u16));
+                    x = returned_x as usize;
+                    currentWallList.push((x as u16, y as u16));
+                } else {
+                    continue;
+                }
+                let mut _x: i32 = (x as i32);
+                let mut _y: i32 = (y as i32);
+                for mut i in 0..self.dir.len() {
+                    _x += self.dir[i].0;
+                    _y += self.dir[i].1;
+                    let returned_x = self.check_wall_right(_x, _y);
+                    if _x < returned_x {
+                        _x = returned_x;
+                        _y -= self.dir[i].1;
+                        i = 0;
+                        currentWallList.push((_x as u16, _y as u16));
                         continue;
                     }
-                    let _x = (x as i32) + self.dir[i].0;
-                    let _y = (y as i32) + self.dir[i].1;
-                    if self.not_wall_bound(_x, _y) {
+                    let returned_y = self.check_wall_down(_x, _y);
+                    if _y < returned_y {
+                        _x -= self.dir[i].0;
+                        _y = returned_y;
+                        i = 0;
+                        currentWallList.push((_x as u16, _y as u16));
                         continue;
                     }
-                    found=true;
+
+                    let returned_x = self.check_wall_left(_x, _y);
+                    if returned_x < _x {
+                        _x = returned_x;
+                        _y -= self.dir[i].1;
+                        i = 0;
+                        currentWallList.push((_x as u16, _y as u16));
+                        continue;
+                    }
+
+                    let returned_y = self.check_wall_up(_x, _y);
+                    if returned_y < _y {
+                        _x -= self.dir[i].0;
+                        _y = returned_x;
+                        i = 0;
+                        currentWallList.push((_x as u16, _y as u16));
+                        continue;
+                    }
+                    _x -= self.dir[i].0;
+                    _y -= self.dir[i].1;
+                }
+                if currentWallList.len() > 4 {
+                    self.wall_list.push(currentWallList);
                 }
             }
         }
     }
 
-    pub fn not_wall_bound(&self, _x :i32, _y:i32) -> bool{
+    pub fn cant_go_farther(&self, _x: i32, _y: i32) -> bool {
         _x < 0 || _y < 0 || _x >= self.width as i32 || _y >= self.height as i32 || !self.isWall[_x as usize][_y as usize]
     }
 
-    pub fn check_wall_at_x(&mut self, x: i32, y:i32)-> bool{
-        while self.not_wall_bound(x, y) {
-            for y in y..self.height  {
-
-            }
+    pub fn check_wall_right(&mut self, x: i32, y: i32) -> i32 {
+        let mut _x = x;
+        while !self.cant_go_farther(_x + 1, y) {
+            _x += 1;
+            self.isWall[_x as usize][y as usize] = false;
         }
+        if x != x {
+            return x;
+        }
+        _x as i32
+    }
 
-        true
+    pub fn check_wall_down(&mut self, x: i32, mut y: i32) -> i32 {
+        while !self.cant_go_farther(x, y + 1) {
+            y += 1;
+            self.isWall[x as usize][y as usize] = false;
+            self.startList.push(y);
+        }
+        y as i32
+    }
+
+    pub fn check_wall_left(&mut self, x: i32, y: i32) -> i32 {
+        let mut _x = x;
+        while !self.cant_go_farther(_x - 1, y) && !self.cant_go_farther(_x - 1, y + 1) {
+            _x -= 1;
+            self.isWall[_x as usize][y as usize] = false;
+        }
+        if x != x {
+            return x;
+        }
+        _x as i32
+    }
+
+    pub fn check_wall_up(&mut self, x: i32, mut y: i32) -> i32 {
+        while !self.cant_go_farther(x, y - 1) {
+            y -= 1;
+            self.isWall[x as usize][y as usize] = false;
+            self.endList.push(y);
+        }
+        y as i32
     }
 
 
     pub fn create_color_sets(&mut self) {
         //TODO: create color sets
-    }
-
-
-    pub fn get_wall_maps_dfs(&mut self) {
-        let mut _a_wall: Vec<(u16, u16)> = Vec::new();
-        for mut y in 1..self.height - 1 {
-            for mut x in 1..self.width - 1 {}
-        }
     }
 
 
