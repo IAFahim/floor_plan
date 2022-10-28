@@ -1,8 +1,13 @@
-Given an image of W,H pixels, where a 2d matrix of all the dark and light colors in the image, where dark color are marked as 1 and light color as 0.
+Given a 2D Matrix of **W** width,**H** height, **1** is **dark** and **0** is **light** color in the Matrix. Find the coordinates of a polygon that can be formed by the changing directions as the vertices.
 
 ![img](img/Untitled2.png)
 
-find the points where the 2d matrix takes turn. For example, if the matrix is
+**Note:** Find the points where the 2d matrix takes turn. You may want to find a PreSum from y direction to find the turning points.
+shown here
+![img](img/simple_floor_plan_1_without_light_color.png)
+![img](img/simple_floor_plan_1_y_heatMap.png)
+
+_There might be typing mistake in the problem please forgive the problem setter._
 
 **input 1:**
 ```
@@ -20,7 +25,7 @@ find the points where the 2d matrix takes turn. For example, if the matrix is
 00000000
 ```
 
-**output 2:**
+**output 1:**
 
 ```
 wall1: (1,1),(1,5),(4,5),(4,4),(4,3),(2,3),(2,1),(1,1)
