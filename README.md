@@ -1,5 +1,7 @@
 Given a 2D Matrix of **W** width,**H** height, **1** is **dark** and **0** is **light** color in the Matrix. Find the coordinates of a polygon that can be formed by the changing directions as the vertices.
 
+You may solve it with any language you want. And if you solve it the job is flexible enough with good pay, you can do job at university off-days from home, pay might vary form 30k-to-50k taka per month.
+
 ![img](img/Untitled2.png)
 
 **Note:** Find the points where the 2d matrix takes turn. You may want to find a PreSum from y direction to find the turning points.
