@@ -5,8 +5,8 @@ use image::{DynamicImage, GenericImage, GenericImageView, Rgba};
 pub struct Area {
     path: String,
     pub img: DynamicImage,
-    width: usize,
-    height: usize,
+    pub width: usize,
+    pub height: usize,
     tolerance: u8,
     maybe_font_height: u16,
     maybe_font_width: u16,
